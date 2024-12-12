@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.nio.ByteBuffer
@@ -204,12 +205,21 @@ class MainActivity : AppCompatActivity() {
     private fun startMessageListener(listenerPort: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val serverSocket = ServerSocket(listenerPort)
+
+                val serverSocket = ServerSocket(listenerPort, 50, InetAddress.getByName("0.0.0.0"))
+                serverSocket.reuseAddress = true
 
                 withContext(Dispatchers.Main) {
-                    receiveTextView.text = "Listening on port $listenerPort"
+                    receiveTextView.text = "Listening on port $listenerPort IP ${serverSocket.inetAddress}"
                 }
-                val clientSocket = serverSocket.accept()
+                var clientSocket = serverSocket.accept()
+                while (true) {
+                    clientSocket = serverSocket.accept()
+                    if (clientSocket.isConnected) {
+                        break
+                    }
+                }
+
 
                 while (!stopButtonPressed) {
                     val inputStream = clientSocket.inputStream
@@ -240,63 +250,63 @@ class MainActivity : AppCompatActivity() {
                 val listenerPort = 9797 // Replace with your desired port number
                 startMessageListener(listenerPort)
 
-                withContext(Dispatchers.Main) {
-                    sendTextView.text = "Connecting to $ipAddress:$portNumber"
-                }
-
-                // Connect to the server
-                val client = Socket(ipAddress, portNumber)
-                val outputStream = client.outputStream
-                val stream = ByteArrayOutputStream()
-
-                while (!stopButtonPressed) {
-                    stream.reset()
-
-                    // Capture image
-                    val capturedImage = captureImage(cameraHelper)
-                    if (capturedImage == null) {
-                        withContext(Dispatchers.Main) {
-                            errorTextView.text = "Image capture failed"
-                        }
-                        continue
-                    }
-
-                    // Compress image to JPEG
-                    val isCompressed = capturedImage.compress(Bitmap.CompressFormat.JPEG, 85, stream)
-                    if (!isCompressed) {
-                        withContext(Dispatchers.Main) {
-                            errorTextView.text = "Image compression failed"
-                        }
-                        continue
-                    }
-
-                    val imageByteArray = stream.toByteArray()
-                    val imageSize = imageByteArray.size
-
-                    // Ensure the image size is valid
-                    if (imageSize <= 0) {
-                        withContext(Dispatchers.Main) {
-                            errorTextView.text = "Invalid image size"
-                        }
-                        continue
-                    }
-
-                    // Prepare and send the size header
-                    val sizeHeader = imageSize.toString().padStart(10, '0')
-                    outputStream.write(sizeHeader.toByteArray(Charsets.UTF_8))
-                    outputStream.flush()
-                    outputStream.write(imageByteArray)
-                    outputStream.flush()
+//                withContext(Dispatchers.Main) {
+//                    sendTextView.text = "Connecting to $ipAddress:$portNumber"
+//                }
+//
+//                // Connect to the server
+//                val client = Socket(ipAddress, portNumber)
+//                val outputStream = client.outputStream
+//                val stream = ByteArrayOutputStream()
+//
+//                while (!stopButtonPressed) {
+//                    stream.reset()
+//
+//                    // Capture image
+//                    val capturedImage = captureImage(cameraHelper)
+//                    if (capturedImage == null) {
+//                        withContext(Dispatchers.Main) {
+//                            errorTextView.text = "Image capture failed"
+//                        }
+//                        continue
+//                    }
+//
+//                    // Compress image to JPEG
+//                    val isCompressed = capturedImage.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+//                    if (!isCompressed) {
+//                        withContext(Dispatchers.Main) {
+//                            errorTextView.text = "Image compression failed"
+//                        }
+//                        continue
+//                    }
+//
+//                    val imageByteArray = stream.toByteArray()
+//                    val imageSize = imageByteArray.size
+//
+//                    // Ensure the image size is valid
+//                    if (imageSize <= 0) {
+//                        withContext(Dispatchers.Main) {
+//                            errorTextView.text = "Invalid image size"
+//                        }
+//                        continue
+//                    }
+//
+//                    // Prepare and send the size header
+//                    val sizeHeader = imageSize.toString().padStart(10, '0')
+//                    outputStream.write(sizeHeader.toByteArray(Charsets.UTF_8))
+//                    outputStream.flush()
+//                    outputStream.write(imageByteArray)
+//                    outputStream.flush()
 
 //                    withContext(Dispatchers.Main) {
 //                        sendTextView.text = "Image sent: $imageSize bytes"
 //                    }
-                }
-
-                // Close resources
-                client.close()
-                stream.close()
-
+//                }
+//
+//                // Close resources
+//                client.close()
+//                stream.close()
+//
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     errorTextView.text = "Error: ${e.message}"
@@ -309,9 +319,9 @@ class MainActivity : AppCompatActivity() {
 
 
 
-    fun btnStopClick(view: View){
-        stopButtonPressed = true
-    }
+//    fun btnStopClick(view: View){
+//        stopButtonPressed = true
+//    }
 //    private suspend fun sendAndReceive(ipAddress: String, portNumber: Int, message: String): String {
 //        val client = withContext(Dispatchers.IO) {
 //            Socket(ipAddress, portNumber)
