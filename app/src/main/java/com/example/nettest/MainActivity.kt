@@ -5,11 +5,16 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.media.MediaMetadataRetriever
 import android.os.Bundle
+import android.os.ParcelFileDescriptor
 import android.view.View
 import android.widget.EditText
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.ImageCapture
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -31,6 +36,16 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 import kotlin.math.pow
+
+import android.content.ContentValues
+import android.content.Context
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import java.io.File
+import java.io.FileWriter
+import java.io.OutputStream
+
 class MainActivity : AppCompatActivity() {
     private lateinit var ipInput: EditText
     private lateinit var portInput: EditText
@@ -39,12 +54,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sendTextView: TextView
     private lateinit var errorTextView: TextView
 
+    private var videoFrame : Int = 0
+    private lateinit var photoPickerLauncher: ActivityResultLauncher<PickVisualMediaRequest>
+    private var fileDescriptor : ParcelFileDescriptor? = null
+    private val mediaRetriever = MediaMetadataRetriever()
     private lateinit var cameraProvider: ProcessCameraProvider
     private lateinit var imageCapture: ImageCapture
     private lateinit var cameraExecutor: ExecutorService
     private val cameraHelper = CameraHelper(this)
     private var sensorWidth: Float = 0.0f
     private var focalLength: Float = 0.0f
+    private var times = listOf(listOf("Type", "Var", "Count", "Timestamp"))
     companion object {
         private const val CAMERA_PERMISSION_REQUEST_CODE = 100
     }
@@ -59,6 +79,7 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+
         ipInput = findViewById(R.id.ipAddrInput)
         portInput = findViewById(R.id.pInput)
         sendTextView = findViewById(R.id.sendTextView)
@@ -92,7 +113,13 @@ class MainActivity : AppCompatActivity() {
             //
         }
 
-
+        photoPickerLauncher =
+            registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+                if (uri != null) {
+                    fileDescriptor = contentResolver.openFileDescriptor(uri, "r")
+                    mediaRetriever.setDataSource(fileDescriptor?.fileDescriptor)
+                }
+            }
     }
 
     private fun startCameraSetup() {
@@ -118,116 +145,35 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-//    fun btnStartClick(view: View){
-//        CoroutineScope(Dispatchers.IO).launch {
-//            val portNumber = portInput.text.toString().toInt()
-//            val ipAddress = ipInput.text.toString()
-//            val message = mInput.text.toString()
-//            val displayedText = "Sent $message"
-//            rTextView.text = displayedText
-//
-//            val client = withContext(Dispatchers.IO) {Socket(ipAddress, portNumber)}
-//            val outputStream = client.outputStream
-//            val inputStream = client.getInputStream()
-//            var bufferSize: Int
-//
-//            while(!stopButtonPressed){
-//                val startTime = System.nanoTime()
-//
-//                val stream = ByteArrayOutputStream()
-////                withContext(Dispatchers.IO) { return@withContext captureImage(cameraHelper) }?.compress(
-////                    Bitmap.CompressFormat.PNG,
-////                    90,
-////                    stream
-////                )
-//                // PROBLEM JEST GDZIEŚ TU, ZDJĘCIE JEST CAŁE A PO KOMPRESJI WIĘKSZOŚĆ ZNIKA
-//
-//                // Robienie zdjęcia zajmuje sekundę, wygląda na to że zatrzymywanie korutyny zajmuje najdłużej
-//                val capturedImage = captureImage(cameraHelper)
-//
-//
-//                // Kompresja zajmuje 4 sekundy
-//                val optSTime = System.nanoTime()
-//
-//                capturedImage?.compress(Bitmap.CompressFormat.PNG, 100, stream)
-//
-//                val optTime = 10.0.pow(-9) * (System.nanoTime() - optSTime)
-//                val sOptTime = optTime.toString()
-//
-//                val imageByteArray = stream.toByteArray()
-//                bufferSize = imageByteArray.size
-//                val bufferAsStr = bufferSize.toString()
-//                val padBuf = bufferAsStr.padStart(10, '0')
-//
-//                outputStream.write(padBuf.toByteArray())
-//
-//                outputStream.write(imageByteArray)
-//                outputStream.flush()
-//
-////                withContext(Dispatchers.IO) {
-////                    outputStream.write("$bufferSize\n".toByteArray(Charsets.UTF_8))
-////                    outputStream.flush()
-////                }
-//
-////                withContext(Dispatchers.IO) {
-////                    val ackBuffer = ByteArray(3)
-////                    val bytesRead = inputStream.read(ackBuffer)
-////                    if (String(ackBuffer, 0, bytesRead) == "ACK") {
-////                        // Send the complete image byte array in one go
-////                        outputStream.write(imageByteArray)
-////                        outputStream.flush()  // Flush to ensure all bytes are sent
-////                    }
-////                    outputStream.write("END".toByteArray())
-////                    outputStream.flush()
-////                }
-//
-//
-//
-//
-//                val endTime = System.nanoTime()
-//                val duration = (endTime - startTime) / 1_000_000_000.0
-//                val operationTime = "Operation took : $duration seconds"
-//
-//                tTextView.text = operationTime
-//                rTextView.text = bufferSize.toString()
-//
-//            }
-//
-//            withContext(Dispatchers.IO) {
-//                client.close()
-//                outputStream.close()
-//                inputStream.close()
-//            }
-//            stopButtonPressed = false
-//        }
-//    }
+    private fun yieldFrameFromVideo(): Bitmap? {
+        val image = try {
+            mediaRetriever.getFrameAtIndex(videoFrame)
+        } catch (e: IllegalArgumentException) {
+            null
+        }
+        videoFrame += 1
+        return image
+    }
 
     private fun startMessageListener(listenerPort: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
 
-                val serverSocket = ServerSocket(listenerPort, 50, InetAddress.getByName("0.0.0.0"))
-                serverSocket.reuseAddress = true
+//                val serverSocket = ServerSocket(listenerPort, 50, InetAddress.getByName("0.0.0.0"))
+                val serverSocket = ServerSocket(listenerPort)
 
                 withContext(Dispatchers.Main) {
                     receiveTextView.text = "Listening on port $listenerPort IP ${serverSocket.inetAddress}"
                 }
-                var clientSocket = serverSocket.accept()
-                while (true) {
-                    clientSocket = serverSocket.accept()
-                    if (clientSocket.isConnected) {
-                        break
-                    }
-                }
+                val clientSocket = serverSocket.accept()
 
-
+                var receiveCounter = 0
                 while (!stopButtonPressed) {
                     val inputStream = clientSocket.inputStream
                     val receivedMessage = inputStream.bufferedReader(Charsets.UTF_8).readLine()
-                    withContext(Dispatchers.Main) {
-                        receiveTextView.text = "\nReceived: $receivedMessage"
-                    }
-
+                    System.nanoTime()
+                    times += listOf(listOf("Receive", receivedMessage, "$receiveCounter", System.nanoTime().toString()))
+                    receiveCounter += 1
                 }
 
                 serverSocket.close()
@@ -239,7 +185,50 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun saveCsvToDownloads(context: Context, fileName: String, data: List<List<String>>) {
+        val csvContent = buildCsvContent(data)
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // For Android 10 and above (Scoped Storage)
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.csv")
+                put(MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+
+            if (uri != null) {
+                resolver.openOutputStream(uri)?.use { outputStream ->
+                    outputStream.write(csvContent.toByteArray())
+                    println("File saved to Downloads: $uri")
+                }
+            } else {
+                println("Failed to create file in Downloads.")
+            }
+        } else {
+            // For Android 9 and below (Legacy storage)
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(downloadsDir, "$fileName.csv")
+            try {
+                FileWriter(file).use { writer ->
+                    writer.write(csvContent)
+                }
+                println("File saved to Downloads: ${file.absolutePath}")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun buildCsvContent(data: List<List<String>>): String {
+        return data.joinToString("\n") { row -> row.joinToString(";") }
+    }
+
+    fun btnSaveClick(view: View){
+        saveCsvToDownloads(this, "sampleTimes", times)
+    }
     fun btnStartClick(view: View) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -250,63 +239,65 @@ class MainActivity : AppCompatActivity() {
                 val listenerPort = 9797 // Replace with your desired port number
                 startMessageListener(listenerPort)
 
-//                withContext(Dispatchers.Main) {
-//                    sendTextView.text = "Connecting to $ipAddress:$portNumber"
-//                }
-//
-//                // Connect to the server
-//                val client = Socket(ipAddress, portNumber)
-//                val outputStream = client.outputStream
-//                val stream = ByteArrayOutputStream()
-//
-//                while (!stopButtonPressed) {
-//                    stream.reset()
-//
-//                    // Capture image
-//                    val capturedImage = captureImage(cameraHelper)
-//                    if (capturedImage == null) {
-//                        withContext(Dispatchers.Main) {
-//                            errorTextView.text = "Image capture failed"
-//                        }
-//                        continue
-//                    }
-//
-//                    // Compress image to JPEG
-//                    val isCompressed = capturedImage.compress(Bitmap.CompressFormat.JPEG, 85, stream)
-//                    if (!isCompressed) {
-//                        withContext(Dispatchers.Main) {
-//                            errorTextView.text = "Image compression failed"
-//                        }
-//                        continue
-//                    }
-//
-//                    val imageByteArray = stream.toByteArray()
-//                    val imageSize = imageByteArray.size
-//
-//                    // Ensure the image size is valid
-//                    if (imageSize <= 0) {
-//                        withContext(Dispatchers.Main) {
-//                            errorTextView.text = "Invalid image size"
-//                        }
-//                        continue
-//                    }
-//
-//                    // Prepare and send the size header
-//                    val sizeHeader = imageSize.toString().padStart(10, '0')
-//                    outputStream.write(sizeHeader.toByteArray(Charsets.UTF_8))
-//                    outputStream.flush()
-//                    outputStream.write(imageByteArray)
-//                    outputStream.flush()
+                withContext(Dispatchers.Main) {
+                    sendTextView.text = "Connecting to $ipAddress:$portNumber"
+                }
 
-//                    withContext(Dispatchers.Main) {
-//                        sendTextView.text = "Image sent: $imageSize bytes"
-//                    }
-//                }
-//
-//                // Close resources
-//                client.close()
-//                stream.close()
-//
+                // Connect to the server
+                val client = Socket(ipAddress, portNumber)
+                val outputStream = client.outputStream
+                val stream = ByteArrayOutputStream()
+
+                var sendCounter = 0
+                while (!stopButtonPressed) {
+                    stream.reset()
+
+                    // Capture image
+//                    val capturedImage = captureImage(cameraHelper)
+                    times += listOf(listOf("Send", "Frame", "$sendCounter", System.nanoTime().toString()))
+                    val capturedImage = yieldFrameFromVideo()
+
+                    if (capturedImage == null) {
+                        withContext(Dispatchers.Main) {
+                            errorTextView.text = "Image capture failed"
+                        }
+                        break
+                    }
+
+                    // Compress image to JPEG
+                    val isCompressed = capturedImage.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                    if (!isCompressed) {
+                        withContext(Dispatchers.Main) {
+                            errorTextView.text = "Image compression failed"
+                        }
+                        continue
+                    }
+
+                    val imageByteArray = stream.toByteArray()
+                    val imageSize = imageByteArray.size
+
+                    // Ensure the image size is valid
+                    if (imageSize <= 0) {
+                        withContext(Dispatchers.Main) {
+                            errorTextView.text = "Invalid image size"
+                        }
+                        continue
+                    }
+
+                    // Prepare and send the size header
+                    val sizeHeader = imageSize.toString().padStart(10, '0')
+                    outputStream.write(sizeHeader.toByteArray(Charsets.UTF_8))
+                    outputStream.flush()
+                    outputStream.write(imageByteArray)
+                    outputStream.flush()
+                    sendCounter += 1
+                }
+                sendTextView.text = "Video sent"
+
+                // Close resources
+                client.close()
+                stream.close()
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     errorTextView.text = "Error: ${e.message}"
@@ -315,13 +306,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun btnPickClick(view: View){
+        photoPickerLauncher.launch(PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.VideoOnly))
+    }
 
 
-
-
-//    fun btnStopClick(view: View){
-//        stopButtonPressed = true
-//    }
+    fun btnStopClick(view: View){
+        stopButtonPressed = true
+    }
 //    private suspend fun sendAndReceive(ipAddress: String, portNumber: Int, message: String): String {
 //        val client = withContext(Dispatchers.IO) {
 //            Socket(ipAddress, portNumber)
