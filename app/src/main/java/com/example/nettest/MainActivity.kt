@@ -28,14 +28,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.nio.ByteBuffer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
-import kotlin.math.pow
 
 import android.content.ContentValues
 import android.content.Context
@@ -44,7 +41,6 @@ import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
 import java.io.FileWriter
-import java.io.OutputStream
 
 class MainActivity : AppCompatActivity() {
     private lateinit var ipInput: EditText
@@ -155,36 +151,6 @@ class MainActivity : AppCompatActivity() {
         return image
     }
 
-    private fun startMessageListener(listenerPort: Int) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-
-//                val serverSocket = ServerSocket(listenerPort, 50, InetAddress.getByName("0.0.0.0"))
-                val serverSocket = ServerSocket(listenerPort)
-
-                withContext(Dispatchers.Main) {
-                    receiveTextView.text = "Listening on port $listenerPort IP ${serverSocket.inetAddress}"
-                }
-                val clientSocket = serverSocket.accept()
-
-                var receiveCounter = 0
-                while (!stopButtonPressed) {
-                    val inputStream = clientSocket.inputStream
-                    val receivedMessage = inputStream.bufferedReader(Charsets.UTF_8).readLine()
-                    System.nanoTime()
-                    times += listOf(listOf("Receive", receivedMessage, "$receiveCounter", System.nanoTime().toString()))
-                    receiveCounter += 1
-                }
-
-                serverSocket.close()
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    errorTextView.append("\nError in listener: ${e.message}")
-                }
-            }
-        }
-    }
-
     private fun saveCsvToDownloads(context: Context, fileName: String, data: List<List<String>>) {
         val csvContent = buildCsvContent(data)
 
@@ -235,10 +201,6 @@ class MainActivity : AppCompatActivity() {
                 val portNumber = portInput.text.toString().toInt()
                 val ipAddress = ipInput.text.toString()
 
-                // Start the message listener on a separate port
-                val listenerPort = 9797 // Replace with your desired port number
-                startMessageListener(listenerPort)
-
                 withContext(Dispatchers.Main) {
                     sendTextView.text = "Connecting to $ipAddress:$portNumber"
                 }
@@ -246,18 +208,19 @@ class MainActivity : AppCompatActivity() {
                 // Connect to the server
                 val client = Socket(ipAddress, portNumber)
                 val outputStream = client.outputStream
+                val inputStream = client.inputStream
                 val stream = ByteArrayOutputStream()
 
                 var sendCounter = 0
+                var receiveCounter = 0
                 while (!stopButtonPressed) {
                     stream.reset()
 
                     // Capture image
 //                    val capturedImage = captureImage(cameraHelper)
-                    times += listOf(listOf("Send", "Frame", "$sendCounter", System.nanoTime().toString()))
-                    val capturedImage = yieldFrameFromVideo()
+                    val image = yieldFrameFromVideo()
 
-                    if (capturedImage == null) {
+                    if (image == null) {
                         withContext(Dispatchers.Main) {
                             errorTextView.text = "Image capture failed"
                         }
@@ -265,7 +228,7 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     // Compress image to JPEG
-                    val isCompressed = capturedImage.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                    val isCompressed = image.compress(Bitmap.CompressFormat.JPEG, 85, stream)
                     if (!isCompressed) {
                         withContext(Dispatchers.Main) {
                             errorTextView.text = "Image compression failed"
@@ -290,7 +253,18 @@ class MainActivity : AppCompatActivity() {
                     outputStream.flush()
                     outputStream.write(imageByteArray)
                     outputStream.flush()
+                    times += listOf(listOf("Send", "Frame", "$sendCounter", System.nanoTime().toString()))
                     sendCounter += 1
+
+                    try {
+                        val receivedMessage = inputStream.bufferedReader(Charsets.UTF_8).readLine()
+                        times += listOf(listOf("Receive", receivedMessage, "$receiveCounter", System.nanoTime().toString()))
+                        receiveCounter += 1
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            errorTextView.append("\nError in listener: ${e.message}")
+                        }
+                    }
                 }
                 sendTextView.text = "Video sent"
 
