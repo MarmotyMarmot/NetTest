@@ -1,4 +1,4 @@
-package com.example.nettest
+package com.example.nettestst
 
 import org.junit.Test
 

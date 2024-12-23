@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NetTest"
+rootProject.name = "NetTestST"
 include(":app")
  

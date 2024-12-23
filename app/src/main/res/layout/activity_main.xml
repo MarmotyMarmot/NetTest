@@ -32,11 +32,47 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/ipAddrInput" />
 
+    <EditText
+        android:id="@+id/csvName"
+        android:layout_width="0dp"
+        android:layout_height="43dp"
+        android:layout_margin="16dp"
+        android:hint="Port"
+        android:inputType="text"
+        android:text="Times"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/pInput" />
+
+    <Button
+        android:id="@+id/pickbutton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:onClick="btnPickClick"
+        android:text="Pick"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/csvName" />
+
+    <TextView
+        android:id="@+id/receiveTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:layout_marginTop="12dp"
+        android:text="Receiver"
+        android:textAlignment="center"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/sendTextView" />
+
     <Button
         android:id="@+id/startButton"
         android:layout_width="0dp"
         android:layout_height="49dp"
         android:layout_margin="16dp"
+        android:layout_marginTop="16dp"
         android:onClick="btnStartClick"
         android:text="Start"
         app:layout_constraintEnd_toEndOf="parent"
@@ -48,7 +84,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:layout_marginTop="40dp"
+        android:layout_marginTop="16dp"
         android:text="Error"
         android:textAlignment="center"
         app:layout_constraintEnd_toEndOf="parent"
@@ -56,23 +92,11 @@
         app:layout_constraintTop_toBottomOf="@+id/receiveTextView" />
 
     <TextView
-        android:id="@+id/receiveTextView"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:layout_marginTop="36dp"
-        android:text="Receiver"
-        android:textAlignment="center"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/sendTextView" />
-
-    <TextView
         android:id="@+id/sendTextView"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="20dp"
         android:text="Sender"
         android:textAlignment="center"
         app:layout_constraintEnd_toEndOf="parent"
@@ -84,7 +108,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:onClick="btnStopClick"
         android:text="Stop"
         app:layout_constraintEnd_toEndOf="parent"
@@ -92,21 +116,11 @@
         app:layout_constraintTop_toBottomOf="@+id/startButton" />
 
     <Button
-        android:id="@+id/pickbutton"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:onClick="btnPickClick"
-        android:text="Pick"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/pInput" />
-
-    <Button
         android:id="@+id/saveButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
+        android:layout_marginTop="12dp"
         android:onClick="btnSaveClick"
         android:text="Save"
         app:layout_constraintEnd_toEndOf="parent"
