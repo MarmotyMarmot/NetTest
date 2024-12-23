@@ -49,6 +49,7 @@ import java.io.OutputStream
 class MainActivity : AppCompatActivity() {
     private lateinit var ipInput: EditText
     private lateinit var portInput: EditText
+    private lateinit var csvName: EditText
     private lateinit var mInput: EditText
     private lateinit var receiveTextView: TextView
     private lateinit var sendTextView: TextView
@@ -82,6 +83,7 @@ class MainActivity : AppCompatActivity() {
 
         ipInput = findViewById(R.id.ipAddrInput)
         portInput = findViewById(R.id.pInput)
+        csvName = findViewById(R.id.csvName)
         sendTextView = findViewById(R.id.sendTextView)
         receiveTextView = findViewById(R.id.receiveTextView)
         errorTextView = findViewById(R.id.errorTextView)
@@ -227,7 +229,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun btnSaveClick(view: View){
-        saveCsvToDownloads(this, "sampleTimes", times)
+        saveCsvToDownloads(this, "${csvName.text}", times)
     }
     fun btnStartClick(view: View) {
         CoroutineScope(Dispatchers.IO).launch {
